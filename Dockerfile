@@ -81,5 +81,5 @@ ENV HOME=/config \
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
     CMD ["/usr/local/bin/desktop-healthcheck"]
 
-LABEL io.debox.managed="true" \
+LABEL io.devbox.standalone.managed="true" \
     io.devbox.desktop="cinnamon"

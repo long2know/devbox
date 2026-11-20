@@ -1,14 +1,15 @@
-# Debox
+# Devbox
 
-Debox is an **Ubuntu Cinnamon development desktop in Docker**, accessible in a
+Devbox is an **Ubuntu Cinnamon development desktop in Docker**, accessible in a
 browser over HTTPS. It includes a persistent home, a full development toolchain,
 and optional Ollama inference, NVIDIA acceleration, and VPN routing. The desktop
 starts with the Lines wallpaper, dark mode, and a folder icon for Nemo. You can
 change those defaults in Cinnamon and keep your choices across rebuilds.
 
-Debox builds locally from LinuxServer's Ubuntu/Selkies base. This repository
-contains the build recipe and Compose setup, not a prebuilt image, models,
-credentials, or personal deployment data.
+Devbox builds locally from LinuxServer's Ubuntu/Selkies base. This repository
+contains the build recipe and Compose setup, not models, credentials, or
+personal deployment data. If you already have a compatible image, you can
+[pull it instead of building](#use-a-compatible-image-from-a-registry).
 
 ## Quick start
 
@@ -19,8 +20,8 @@ additional space for models. Internet access is needed to fetch upstream images
 and packages. No accounts or GPU are required to start the desktop.
 
 ```bash
-git clone https://github.com/long2know/debox.git
-cd debox
+git clone https://github.com/long2know/devbox.git
+cd devbox
 ./setup.sh
 ./build.sh
 ./compose.sh up -d --wait --wait-timeout 300
@@ -36,10 +37,35 @@ cd debox
    [First run](FIRST_RUN.md#open-the-desktop) for how to verify it. Use a
    trusted HTTPS reverse proxy for shared access.
 
-The default image is `devbox-cinnamon:latest`, the container is `debox`, and
+The default image is `devbox-cinnamon:latest`, the container is `devbox`, and
 the Compose service is `devbox`. First builds download several gigabytes and
 can take a few minutes. Follow [First run](FIRST_RUN.md) to sign in to GitHub,
 configure Git and Copilot, and check REA.
+
+## Use a compatible image from a registry
+
+**No public full Devbox image is published at `ghcr.io/long2know/devbox:latest`.**
+Build the full image locally: it downloads applications directly from their
+vendors, including [Microsoft's VS Code binary](https://code.visualstudio.com/license),
+whose license restricts redistribution.
+
+If you already have access to a compatible image your registry is authorized to
+distribute, skip `./build.sh`. Run `./setup.sh` on a fresh checkout and set
+`DEVBOX_IMAGE` in `.env` to the actual image reference, for example:
+
+```dotenv
+DEVBOX_IMAGE=registry.example.com/workstations/devbox:stable
+```
+
+```bash
+docker pull registry.example.com/workstations/devbox:stable
+./compose.sh up -d --wait --wait-timeout 300
+```
+
+Use the image reference without an `https://` prefix. Pull it explicitly because
+the Devbox service does not pull automatically. For an existing installation,
+keep the same `.env`, data path, UID/GID, and password; change only the image
+reference. An image is not a backup of your mounted home.
 
 ## What's installed
 
@@ -76,8 +102,8 @@ without printing credentials.
 | `DESKTOP_BIND_ADDRESS`, `DESKTOP_PORT` | `127.0.0.1`, `4200` | The single published port. Keep loopback unless you intend to expose it. |
 | `DESKTOP_BACKEND_PORT` | `3001` | Direct HTTPS. Use `3000` only behind an HTTPS-terminating reverse proxy or for localhost HTTP access. |
 | `BASE_PATH`, `DESKTOP_TITLE`, `TZ` | `/`, `devbox`, `Etc/UTC` | URL prefix, browser tab title, and timezone. Prefixes must begin and end with `/`. |
-| `OLLAMA_SERVER_HOST`, `OLLAMA_SERVER_PORT` | `desktop-ollama`, `11434` | Model API reachable from Debox. |
-| `DEVBOX_IMAGE` | `devbox-cinnamon:latest` | Local image tag. Other build arguments and version pins are shown in `.env.example`. |
+| `OLLAMA_SERVER_HOST`, `OLLAMA_SERVER_PORT` | `desktop-ollama`, `11434` | Model API reachable from Devbox. |
+| `DEVBOX_IMAGE` | `devbox-cinnamon:latest` | Local image tag or an explicitly pulled compatible image. Other build arguments and version pins are shown in `.env.example`. |
 
 | Host directory | Persists |
 | --- | --- |
@@ -110,7 +136,7 @@ Start a CPU-only model server alongside the desktop:
 The model is an example, not a prerequisite. Choose a size that fits your
 memory and review its license before using it. Models are not fetched at build or
 startup. The server stays on the private Compose network with **no host API
-port published**. The Ollama CLI inside Debox is configured to talk to it.
+port published**. The Ollama CLI inside Devbox is configured to talk to it.
 Copilot CLI can discover models through the loopback relay; open `/model`
 and look under **Local and self-hosted**. Model availability there is separate
 from GitHub-hosted Copilot access.
@@ -192,7 +218,8 @@ Docker build flags and uses `DEVBOX_IMAGE` from the shell environment. Upstream
 packages and images can change; optional build args can pin versions. There is
 no requirement to install proprietary packages directly on your host.
 
-`./cleanup.sh` prunes only unused, untagged images labeled `io.debox.managed=true`.
+`./cleanup.sh` prunes only unused, untagged images labeled
+`io.devbox.standalone.managed=true`.
 `./build.sh` runs it after a successful final-image build. Shared BuildKit
 cache pruning is **off by default**. Set `DEVBOX_PRUNE_BUILD_CACHE=1` when
 invoking `./cleanup.sh` or `./build.sh` to trim unused cache toward 8 GB. That
@@ -215,6 +242,6 @@ Matroska mux, metadata edit, and extraction.
 
 ## License
 
-The Debox build recipe, scripts, and documentation are [MIT licensed](LICENSE).
+The Devbox build recipe, scripts, and documentation are [MIT licensed](LICENSE).
 Ubuntu, LinuxServer/Selkies, installed applications, and any downloaded models
 have their own licenses or terms; they are not relicensed by this repository.

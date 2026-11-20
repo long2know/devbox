@@ -1,11 +1,11 @@
-name: ${COMPOSE_PROJECT_NAME:-debox}
+name: ${COMPOSE_PROJECT_NAME:-devbox}
 
 services:
   devbox:
     image: ${DEVBOX_IMAGE:-devbox-cinnamon:latest}
     pull_policy: never
-    container_name: ${DEVBOX_CONTAINER_NAME:-debox}
-    hostname: ${DEVBOX_CONTAINER_NAME:-debox}
+    container_name: ${DEVBOX_CONTAINER_NAME:-devbox}
+    hostname: ${DEVBOX_CONTAINER_NAME:-devbox}
     build:
       context: .
       args:

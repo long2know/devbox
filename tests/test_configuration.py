@@ -30,6 +30,7 @@ class ComposeConfigurationTests(unittest.TestCase):
             "COPILOT_GITHUB_TOKEN": "",
             "BASE_PATH": base_path,
         }
+        environment.pop("COMPOSE_PROJECT_NAME", None)
         environment.pop("DEVBOX_IMAGE", None)
         environment.pop("DEVBOX_CONTAINER_NAME", None)
         environment.pop("DEVBOX_DATA_DIR", None)
@@ -65,11 +66,14 @@ class ComposeConfigurationTests(unittest.TestCase):
                     )
                     result = self.compose(*options)
                     self.assertEqual(result.returncode, 0, result.stderr)
-                    services = json.loads(result.stdout)["services"]
+                    config = json.loads(result.stdout)
+                    self.assertEqual(config["name"], "devbox")
+                    services = config["services"]
                     desktop = services["devbox"]
                     self.assertEqual(desktop["image"], "devbox-cinnamon:latest")
                     self.assertEqual(desktop["pull_policy"], "never")
-                    self.assertEqual(desktop["container_name"], "debox")
+                    self.assertEqual(desktop["container_name"], "devbox")
+                    self.assertEqual(desktop["hostname"], "devbox")
                     self.assertEqual(
                         desktop["environment"]["PASSWORD"],
                         "example-only: with spaces and-symbols",
@@ -288,7 +292,10 @@ class LauncherTests(unittest.TestCase):
                     "REA_VERSION=6.9.0",
                     str(ROOT),
                 ],
-                ["image", "prune", "--force", "--filter", "label=io.debox.managed=true"],
+                [
+                    "image", "prune", "--force", "--filter",
+                    "label=io.devbox.standalone.managed=true",
+                ],
             ],
         )
 
@@ -306,7 +313,10 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(
             commands,
             [
-                ["image", "prune", "--force", "--filter", "label=io.debox.managed=true"],
+                [
+                    "image", "prune", "--force", "--filter",
+                    "label=io.devbox.standalone.managed=true",
+                ],
                 [
                     "buildx", "prune", "--builder", "devbox-test-context",
                     "--all", "--force", "--max-used-space", "8GB",

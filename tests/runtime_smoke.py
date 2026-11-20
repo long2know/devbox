@@ -276,7 +276,7 @@ print('PASS: Chrome, VS Code, and Copilot retain the GNOME encrypted-secret back
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--image", default="devbox-cinnamon:latest")
-    parser.add_argument("--network", default="debox_desktop")
+    parser.add_argument("--network", default="devbox_desktop")
     parser.add_argument("--ollama-host", default="desktop-ollama")
     parser.add_argument("--gpu", action="store_true")
     parser.add_argument("--keep-on-failure", action="store_true")

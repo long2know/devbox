@@ -2,7 +2,7 @@
 
 ## Open the desktop
 
-After [starting Debox](README.md#quick-start), open `https://localhost:4200/`.
+After [starting Devbox](README.md#quick-start), open `https://localhost:4200/`.
 Use the desktop username and password from your local `.env`. Those credentials
 are separate from all GitHub, Google, and VPN logins. Do not share `.env` or paste
 it into issue reports.
@@ -22,7 +22,7 @@ deployment.
 
 ## Sign in to GitHub and configure Git
 
-Run these in **GNOME Terminal inside Debox**, as the normal `abc` user and
+Run these in **GNOME Terminal inside Devbox**, as the normal `abc` user and
 without `sudo`:
 
 ```bash
