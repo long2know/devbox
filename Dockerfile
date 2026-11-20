@@ -9,11 +9,10 @@ FROM ${NODE_IMAGE} AS node
 FROM ${DOTNET_LTS_IMAGE} AS dotnet-lts
 FROM ${DOTNET_CURRENT_IMAGE} AS dotnet-current
 FROM ${OLLAMA_IMAGE} AS ollama
-FROM ${DESKTOP_BASE}
+FROM ${DESKTOP_BASE} AS public
 
 ARG TARGETARCH
 ARG COPILOT_CLI_VERSION=latest
-ARG COPILOT_APP_VERSION=latest
 ARG REA_VERSION=latest
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -41,6 +40,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --chmod=0755 root/ /
+COPY --chmod=0644 THIRD_PARTY.md /usr/share/doc/devbox/THIRD_PARTY.md
 
 # Let Cinnamon own XSettings so user theme changes reach GTK apps.
 RUN --mount=type=bind,source=root,target=/image-root \
@@ -57,19 +57,19 @@ RUN --mount=type=bind,source=root,target=/image-root \
         /usr/local/bin/desktop-healthcheck \
         /usr/local/bin/desktop-media-smoke-test \
         /usr/local/bin/desktop-smoke-test \
+        /usr/local/sbin/devbox-install-vendor-apps \
         /etc/s6-overlay/s6-rc.d/svc-ollama-proxy/run && \
-    ln -sfn /usr/local/share/applications/dev-chrome.desktop \
-        /usr/share/applications/chromium.desktop && \
     rm /etc/s6-overlay/s6-rc.d/user/contents.d/svc-xsettingsd && \
     test -r /usr/share/desktop-base/lines-theme/wallpaper/gnome-background.xml && \
     glib-compile-schemas --strict /usr/share/glib-2.0/schemas && \
     desktop-file-edit --set-icon=folder /usr/share/applications/nemo.desktop && \
+    dpkg-query -W -f='${binary:Package}\t${Version}\t${source:Package}\t${source:Version}\n' \
+        > /usr/share/doc/devbox/apt-sources.tsv && \
     /usr/local/bin/desktop-media-smoke-test
 
 ENV HOME=/config \
     TITLE=devbox \
     PIXELFLUX_WAYLAND=false \
-    BROWSER=/usr/local/bin/chrome \
     XDG_CONFIG_HOME=/config/.config \
     NPM_CONFIG_PREFIX=/config/.local \
     OLLAMA_HOST=http://127.0.0.1:11434 \
@@ -78,8 +78,20 @@ ENV HOME=/config \
     APP_SANDBOX=0 \
     PATH=/config/.local/bin:/config/.dotnet/tools:${PATH}
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10m --retries=3 \
     CMD ["/usr/local/bin/desktop-healthcheck"]
 
 LABEL io.devbox.standalone.managed="true" \
-    io.devbox.desktop="cinnamon"
+    io.devbox.desktop="cinnamon" \
+    io.devbox.variant="public" \
+    org.opencontainers.image.source="https://github.com/long2know/devbox"
+
+FROM public AS full
+ARG COPILOT_APP_VERSION=latest
+
+RUN --mount=type=tmpfs,target=/tmp \
+    env -i HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+        /usr/local/sbin/devbox-install-vendor-apps "$COPILOT_APP_VERSION"
+
+ENV BROWSER=/usr/local/bin/chrome
+LABEL io.devbox.variant="full"

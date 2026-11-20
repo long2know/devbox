@@ -34,8 +34,8 @@ def docker(*arguments, timeout=600, input_text=None):
     return result.stdout + result.stderr if arguments[0] == "logs" else result.stdout
 
 
-def healthy(name):
-    deadline = time.monotonic() + 240
+def healthy(name, timeout=240):
+    deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         state = json.loads(docker("inspect", name))[0]["State"]
         if state.get("Health", {}).get("Status") == "healthy":

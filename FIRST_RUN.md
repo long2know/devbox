@@ -46,6 +46,11 @@ live in the mounted home and survive container recreation.
 
 ## Start developing
 
+The full local build includes Chrome, Microsoft VS Code, and Copilot desktop.
+In the [pulled image](README.md#use-the-ghcr-image), they appear only after
+you opt in to installation; you can open any device-code links in a browser on
+the machine you're connecting from if the desktop has no browser.
+
 - **Chrome:** Open **Google Chrome** in the menu. Sign in to Google only if you
   want account features. Your profile lives under `~/.config/google-chrome`.
   The Docker-compatible `--no-sandbox` launcher shows a real security warning;
@@ -58,8 +63,9 @@ live in the mounted home and survive container recreation.
   container flags and use the encrypted GNOME Login keyring. The keyring
   unlocks with the desktop password on startup; don't reset it if changing
   passwords. Logins can still expire or be revoked by their providers.
-- **REA:** Startup registers the MCP server and skill for Copilot CLI and VS
-  Code. Check Copilot CLI with `copilot mcp get rea`; use `rea mcp doctor --json`
+- **REA:** Startup registers the MCP server and skill for Copilot CLI and for
+  VS Code when that editor is installed. Check Copilot CLI with
+  `copilot mcp get rea`; use `rea mcp doctor --json`
   for a standalone adapter check. Restart an already-open client after changing
   MCP setup. Native decompilers and external providers are not bundled.
 - **Tools and projects:** Keep projects under `~/projects` or a persistent

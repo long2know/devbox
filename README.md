@@ -6,10 +6,14 @@ and optional Ollama inference, NVIDIA acceleration, and VPN routing. The desktop
 starts with the Lines wallpaper, dark mode, and a folder icon for Nemo. You can
 change those defaults in Cinnamon and keep your choices across rebuilds.
 
-Devbox builds locally from LinuxServer's Ubuntu/Selkies base. This repository
-contains the build recipe and Compose setup, not models, credentials, or
-personal deployment data. If you already have a compatible image, you can
-[pull it instead of building](#use-a-compatible-image-from-a-registry).
+Both variants use LinuxServer's Ubuntu/Selkies base and the same Compose ports,
+home mount, and keyring integration. Images don't contain models, credentials,
+or personal deployment data.
+
+| Variant | How to get it | Vendor desktop apps |
+| --- | --- | --- |
+| **Full local build** | `./build.sh` → `devbox-cinnamon:latest` | Chrome, Microsoft VS Code, and Copilot desktop are installed during the build. |
+| **Public target** | `./build-public.sh` or the [GHCR package](#use-the-ghcr-image) | Those three apps aren't shipped. Set `DEVBOX_INSTALL_VENDOR_APPS=1` to install them from their vendors on the first startup of each new container. |
 
 ## Quick start
 
@@ -42,38 +46,65 @@ the Compose service is `devbox`. First builds download several gigabytes and
 can take a few minutes. Follow [First run](FIRST_RUN.md) to sign in to GitHub,
 configure Git and Copilot, and check REA.
 
-## Use a compatible image from a registry
+## Use the GHCR image
 
-**No public full Devbox image is published at `ghcr.io/long2know/devbox:latest`.**
-Build the full image locally: it downloads applications directly from their
-vendors, including [Microsoft's VS Code binary](https://code.visualstudio.com/license),
-whose license restricts redistribution.
+The public target is published to `ghcr.io/long2know/devbox:latest` by the
+**Publish public image** workflow. GitHub Packages controls visibility separately
+from the repository. The account owner must make the package public before it
+can be pulled without signing in.
 
-If you already have access to a compatible image your registry is authorized to
-distribute, skip `./build.sh`. Run `./setup.sh` on a fresh checkout and set
-`DEVBOX_IMAGE` in `.env` to the actual image reference, for example:
+Run `./setup.sh` from the checkout if you don't already have a `.env`. Set the
+image reference in `.env`, then pull and start without building:
 
 ```dotenv
-DEVBOX_IMAGE=registry.example.com/workstations/devbox:stable
+DEVBOX_IMAGE=ghcr.io/long2know/devbox:latest
 ```
 
 ```bash
-docker pull registry.example.com/workstations/devbox:stable
-./compose.sh up -d --wait --wait-timeout 300
+docker pull ghcr.io/long2know/devbox:latest
+./compose.sh up -d --no-build --wait --wait-timeout 600
 ```
 
-Use the image reference without an `https://` prefix. Pull it explicitly because
-the Devbox service does not pull automatically. For an existing installation,
-keep the same `.env`, data path, UID/GID, and password; change only the image
-reference. An image is not a backup of your mounted home.
+To opt into **Chrome, VS Code, and Copilot desktop**, read the
+[Chrome terms](https://www.google.com/chrome/terms/),
+[VS Code license](https://code.visualstudio.com/license), and
+[Copilot desktop terms and releases](https://github.com/github/app). Set
+`DEVBOX_INSTALL_VENDOR_APPS=1` in `.env` before starting. The container uses
+signed APT repositories and checks the Copilot desktop release digest. Allow
+outbound internet and extra time and disk space on first startup. A normal
+restart does not reinstall the apps; deleting/recreating the container does.
+Profiles, projects, and the encrypted keyring live on the home mount, not in
+the container. An image is not a backup of that home.
+
+For an existing deployment, **keep the same home mount, UID/GID, and password**.
+Change `DEVBOX_IMAGE` to the pulled tag. If you use your own Compose file rather
+than this repo's, also pass `DEVBOX_INSTALL_VENDOR_APPS` into the `devbox`
+service's `environment` (an `.env` entry by itself isn't passed into a
+container):
+
+```yaml
+services:
+  devbox:
+    environment:
+      DEVBOX_INSTALL_VENDOR_APPS: ${DEVBOX_INSTALL_VENDOR_APPS:-0}
+```
+
+Recreate only the Devbox service, with `up -d --no-deps --no-build --wait
+--wait-timeout 600 devbox`, from the directory of your existing Compose project.
+Stop any other container using that same home before starting this one. Use the
+same desktop password so the existing keyring can unlock. To revert, use the
+previous image reference and recreate the service again.
+
+If GHCR is unavailable, you can build the same public target with
+`./build-public.sh` and use `DEVBOX_IMAGE=devbox-public:local`.
 
 ## What's installed
 
 | Area | Applications and tools |
 | --- | --- |
 | Desktop | Cinnamon, Muffin, Cinnamon Settings and screen locker, Nemo file manager, GNOME Terminal, Selkies browser streaming, GNOME Keyring |
-| Browser | Official Google Chrome; not Chromium |
-| Editors and agents | Visual Studio Code, GitHub Copilot CLI, GitHub Copilot desktop, REA (`rea-agents`) MCP server and workflow skill |
+| Browser | Official Google Chrome in the full or opted-in image; no browser is bundled in the public target |
+| Editors and agents | GitHub Copilot CLI, REA (`rea-agents`) MCP server and workflow skill; Visual Studio Code and GitHub Copilot desktop in the full or opted-in image |
 | Runtimes and SDKs | Node.js 26 and npm; .NET 10 and 11 SDKs, .NET and ASP.NET Core runtimes; PowerShell; Python 3 and `venv` |
 | Version control and build tools | Git, GitHub CLI (`gh`), GCC/C++, Make, GDB, `pkg-config`, OpenSSH client |
 | Media and diagnostics | FFmpeg/ffprobe, MKVToolNix CLI and GUI, OpenGL utilities (`glxinfo`) |
@@ -103,6 +134,7 @@ without printing credentials.
 | `DESKTOP_BACKEND_PORT` | `3001` | Direct HTTPS. Use `3000` only behind an HTTPS-terminating reverse proxy or for localhost HTTP access. |
 | `BASE_PATH`, `DESKTOP_TITLE`, `TZ` | `/`, `devbox`, `Etc/UTC` | URL prefix, browser tab title, and timezone. Prefixes must begin and end with `/`. |
 | `OLLAMA_SERVER_HOST`, `OLLAMA_SERVER_PORT` | `desktop-ollama`, `11434` | Model API reachable from Devbox. |
+| `DEVBOX_INSTALL_VENDOR_APPS` | `0` | Set to `1` to install the vendor desktop apps in a pulled/public container. The full local build already includes them. |
 | `DEVBOX_IMAGE` | `devbox-cinnamon:latest` | Local image tag or an explicitly pulled compatible image. Other build arguments and version pins are shown in `.env.example`. |
 
 | Host directory | Persists |
@@ -217,6 +249,9 @@ desktop. `./build.sh` is also available for building without `.env`; it accepts
 Docker build flags and uses `DEVBOX_IMAGE` from the shell environment. Upstream
 packages and images can change; optional build args can pin versions. There is
 no requirement to install proprietary packages directly on your host.
+To update the GHCR variant, pull again and recreate with `--no-build`.
+If opted-in setup fails, `./compose.sh logs devbox` shows the error; fix it and
+restart, or change the flag to `0` and recreate to use only the public base.
 
 `./cleanup.sh` prunes only unused, untagged images labeled
 `io.devbox.standalone.managed=true`.
@@ -233,6 +268,8 @@ python3 -m unittest discover -s tests -v
 python3 tests/mkvtoolnix_runtime.py
 # After starting the Ollama profile, with the default Compose project name:
 python3 tests/runtime_smoke.py
+# For a locally built public target (add --vendor-apps to test real installs and recreation):
+python3 tests/public_image_smoke.py devbox-public:local
 ```
 
 The runtime checks use disposable desktop state and synthetic credentials. Use
@@ -243,5 +280,6 @@ Matroska mux, metadata edit, and extraction.
 ## License
 
 The Devbox build recipe, scripts, and documentation are [MIT licensed](LICENSE).
-Ubuntu, LinuxServer/Selkies, installed applications, and any downloaded models
-have their own licenses or terms; they are not relicensed by this repository.
+See [third-party notices and source locations](THIRD_PARTY.md) for software in
+the image. Installed applications and any downloaded models keep their own
+licenses or terms.

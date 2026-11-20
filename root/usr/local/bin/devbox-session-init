@@ -6,6 +6,7 @@ import sys
 
 
 LOGIN_COLLECTION = "/org/freedesktop/secrets/collection/login"
+CHROME_LAUNCHER = Path("/usr/local/share/applications/dev-chrome.desktop")
 
 
 def command(*arguments, input_text=None, environment=None):
@@ -93,7 +94,7 @@ def initialize_keyring(password):
 
 def initialize_browser(home):
     marker = home / ".local/state/devbox/google-browser-default-cinnamon-v1"
-    if marker.exists():
+    if marker.exists() or not CHROME_LAUNCHER.is_file():
         return
     environment = {
         **os.environ,

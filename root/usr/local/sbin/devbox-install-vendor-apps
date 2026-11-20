@@ -1,0 +1,138 @@
+#!/bin/bash
+set -euo pipefail
+
+version="${1:-latest}"
+if [[ "$version" != latest && ! "$version" =~ ^v?[0-9][A-Za-z0-9.+-]*$ ]]; then
+    echo "COPILOT_APP_VERSION must be latest or a release version." >&2
+    exit 2
+fi
+
+installed() {
+    [[ "$(dpkg-query -W -f='${db:Status-Status}' "$1" 2>/dev/null)" == installed ]]
+}
+
+app_dir=/usr/local/share/dev-desktop
+copilot_package=
+if [[ -r "$app_dir/copilot-app-package" ]]; then
+    read -r copilot_package < "$app_dir/copilot-app-package"
+fi
+if installed code && installed google-chrome-stable && [[ -n "$copilot_package" ]] \
+    && installed "$copilot_package" && [[ -s "$app_dir/copilot-app-command.json" ]]; then
+    echo "Devbox vendor apps are already installed."
+    exit 0
+fi
+
+export DEBIAN_FRONTEND=noninteractive
+umask 022
+scratch="$(mktemp -d /tmp/devbox-vendor.XXXXXXXX)"
+trap 'rm -f -- "$scratch/code.gpg" "$scratch/google.gpg" "$scratch/copilot.deb"; rmdir -- "$scratch"' EXIT
+
+packages=()
+if ! installed code; then
+    echo "Configuring the signed VS Code repository."
+    curl -fsSL --retry 2 --max-time 60 https://packages.microsoft.com/keys/microsoft.asc \
+        | gpg --batch --dearmor -o "$scratch/code.gpg"
+    install -m 0644 "$scratch/code.gpg" /etc/apt/keyrings/devbox-vscode.gpg
+    printf '%s\n' \
+        'deb [arch=amd64 signed-by=/etc/apt/keyrings/devbox-vscode.gpg] https://packages.microsoft.com/repos/code stable main' \
+        > /etc/apt/sources.list.d/vscode.list
+    printf 'code code/add-microsoft-repo boolean false\n' | debconf-set-selections
+    packages+=(code)
+fi
+if ! installed google-chrome-stable; then
+    echo "Configuring the signed Google Chrome repository."
+    curl -fsSL --retry 2 --max-time 60 https://dl.google.com/linux/linux_signing_key.pub \
+        | gpg --batch --dearmor -o "$scratch/google.gpg"
+    install -m 0644 "$scratch/google.gpg" /etc/apt/keyrings/devbox-google.gpg
+    printf '%s\n' \
+        'deb [arch=amd64 signed-by=/etc/apt/keyrings/devbox-google.gpg] https://dl.google.com/linux/chrome/deb/ stable main' \
+        > /etc/apt/sources.list.d/google-chrome.list
+    packages+=(google-chrome-stable)
+fi
+if [[ -z "$copilot_package" ]] || ! installed "$copilot_package" \
+    || [[ ! -s "$app_dir/copilot-app-command.json" ]]; then
+    python3 - "$version" "$scratch/copilot.deb" <<'PY'
+import hashlib
+import json
+from pathlib import Path
+import re
+import shutil
+import sys
+import urllib.request
+
+version, filename = sys.argv[1:]
+release = "latest" if version == "latest" else f"tags/v{version.removeprefix('v')}"
+request = urllib.request.Request(
+    f"https://api.github.com/repos/github/app/releases/{release}",
+    headers={"User-Agent": "devbox-vendor-installer"},
+)
+with urllib.request.urlopen(request, timeout=60) as response:
+    metadata = json.load(response)
+asset = next(a for a in metadata["assets"] if a["name"] == "GitHub-Copilot-linux-x64.deb")
+digest = asset.get("digest", "")
+if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+    raise SystemExit("Copilot desktop release has no valid SHA-256 digest.")
+url = asset["browser_download_url"]
+if not url.startswith("https://github.com/github/app/releases/download/"):
+    raise SystemExit("Unexpected Copilot desktop download origin.")
+with urllib.request.urlopen(url, timeout=120) as response:
+    with Path(filename).open("wb") as output:
+        shutil.copyfileobj(response, output, 1024 * 1024)
+with Path(filename).open("rb") as package:
+    actual = hashlib.file_digest(package, "sha256").hexdigest()
+if f"sha256:{actual}" != digest:
+    raise SystemExit("Copilot desktop package checksum mismatch.")
+print(f"Verified Copilot desktop {metadata['tag_name']}", flush=True)
+PY
+    copilot_package="$(dpkg-deb -f "$scratch/copilot.deb" Package)"
+    packages+=("$scratch/copilot.deb")
+fi
+
+apt-get -o Acquire::Retries=2 update --error-on=any
+apt-get install -y --no-install-recommends "${packages[@]}"
+if installed chromium; then
+    apt-get remove -y --no-auto-remove chromium
+fi
+
+python3 - "$copilot_package" "$app_dir" <<'PY'
+import configparser
+import json
+from pathlib import Path
+import shlex
+import subprocess
+import sys
+
+package, directory = sys.argv[1:]
+files = subprocess.check_output(["dpkg", "-L", package], text=True)
+launchers = [Path(p) for p in files.splitlines() if "/applications/" in p and p.endswith(".desktop")]
+if len(launchers) != 1:
+    raise SystemExit(f"Expected one Copilot desktop launcher; found {len(launchers)}.")
+desktop = configparser.ConfigParser(interpolation=None)
+desktop.read(launchers[0])
+command = [arg for arg in shlex.split(desktop["Desktop Entry"]["Exec"]) if not arg.startswith("%")]
+if not command:
+    raise SystemExit("Copilot desktop launcher has no command.")
+path = Path(directory)
+(path / "copilot-app-command.json").write_text(json.dumps(command) + "\n")
+PY
+
+install -d /usr/local/share/applications
+install -m 0644 "$app_dir"/vendor-launchers/*.desktop /usr/local/share/applications/
+ln -sfn /usr/local/bin/chrome /usr/local/bin/x-www-browser
+ln -sfn /usr/local/bin/chrome /usr/local/bin/google-chrome
+ln -sfn /usr/local/bin/code-desktop /usr/local/bin/code
+ln -sfn /usr/local/bin/chrome /usr/bin/chromium-browser
+ln -sfn /usr/local/share/applications/dev-chrome.desktop /usr/share/applications/chromium.desktop
+for launcher in /usr/share/applications/{google-chrome,com.google.Chrome}.desktop; do
+    if [[ -f "$launcher" ]]; then
+        sed -i \
+            -e 's|^Exec=/usr/bin/google-chrome-stable|Exec=/usr/local/bin/chrome|' \
+            -e 's|^Exec=/usr/bin/google-chrome|Exec=/usr/local/bin/chrome|' \
+            "$launcher"
+    fi
+done
+
+apt-get clean
+find /var/lib/apt/lists -mindepth 1 -delete
+printf '%s\n' "$copilot_package" > "$app_dir/copilot-app-package"
+echo "Devbox vendor apps installed."

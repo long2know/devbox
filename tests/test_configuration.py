@@ -20,6 +20,8 @@ class ComposeConfigurationTests(unittest.TestCase):
         backend_port=None,
         base_path="/",
         env_file=None,
+        vendor_apps=None,
+        image=None,
     ):
         environment = {
             **os.environ,
@@ -34,6 +36,11 @@ class ComposeConfigurationTests(unittest.TestCase):
         environment.pop("DEVBOX_IMAGE", None)
         environment.pop("DEVBOX_CONTAINER_NAME", None)
         environment.pop("DEVBOX_DATA_DIR", None)
+        environment.pop("DEVBOX_INSTALL_VENDOR_APPS", None)
+        if vendor_apps is not None:
+            environment["DEVBOX_INSTALL_VENDOR_APPS"] = vendor_apps
+        if image is not None:
+            environment["DEVBOX_IMAGE"] = image
         if host_port is None:
             environment.pop("DESKTOP_PORT", None)
         else:
@@ -180,6 +187,18 @@ class ComposeConfigurationTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("DESKTOP_PASSWORD", result.stderr)
 
+    def test_pulled_public_image_has_opt_in_vendor_apps_and_same_home_mount(self):
+        image = "ghcr.io/long2know/devbox:latest"
+        for flag in (None, "1"):
+            with self.subTest(vendor_apps=flag):
+                result = self.compose(image=image, vendor_apps=flag, env_file="/dev/null")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                desktop = json.loads(result.stdout)["services"]["devbox"]
+                self.assertEqual(desktop["image"], image)
+                self.assertEqual(desktop["environment"]["DEVBOX_INSTALL_VENDOR_APPS"], flag or "0")
+                self.assertEqual(Path(desktop["volumes"][0]["source"]), ROOT / "data/home")
+                self.assertEqual(desktop["volumes"][0]["target"], "/config")
+
     def test_single_https_port_is_configurable_with_and_without_vpn(self):
         for options, service in (([], "devbox"), (["--vpn"], "vpn")):
             with self.subTest(service=service):
@@ -266,6 +285,7 @@ class LauncherTests(unittest.TestCase):
                 "DOCKER_BUILD_EXIT_CODE": "0",
             }
             env.pop("DEVBOX_PRUNE_BUILD_CACHE", None)
+            env.pop("DEVBOX_PUBLIC_IMAGE", None)
             env.update(environment)
             return subprocess.run(
                 [str(ROOT / script), *arguments],
@@ -305,6 +325,18 @@ class LauncherTests(unittest.TestCase):
         commands = [json.loads(line) for line in result.stdout.splitlines()]
         self.assertEqual(len(commands), 1)
         self.assertEqual(commands[0][0], "build")
+
+    def test_public_build_exports_only_the_public_target(self):
+        result = self.run_script("build-public.sh", "--progress=plain")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout),
+            [
+                "build", "--pull", "--platform", "linux/amd64",
+                "--tag", "devbox-public:local", "--progress=plain",
+                "--target", "public", str(ROOT),
+            ],
+        )
 
     def test_shared_cache_trim_requires_opt_in(self):
         result = self.run_script("cleanup.sh", DEVBOX_PRUNE_BUILD_CACHE="1")

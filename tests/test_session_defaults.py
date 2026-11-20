@@ -104,6 +104,25 @@ class KeyringInitializationTests(unittest.TestCase):
 
 
 class BrowserInitializationTests(unittest.TestCase):
+    def setUp(self):
+        launcher = patch.object(session, "CHROME_LAUNCHER")
+        self.launcher = launcher.start()
+        self.launcher.is_file.return_value = True
+        self.addCleanup(launcher.stop)
+
+    def test_public_image_does_not_set_chrome_default_before_install(self):
+        self.launcher.is_file.return_value = False
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            with patch.object(session, "command") as run:
+                session.initialize_browser(home)
+                run.assert_not_called()
+                self.assertFalse((home / ".local").exists())
+
+                self.launcher.is_file.return_value = True
+                session.initialize_browser(home)
+                run.assert_called_once()
+
     def test_default_is_applied_once_so_later_user_choices_are_preserved(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)

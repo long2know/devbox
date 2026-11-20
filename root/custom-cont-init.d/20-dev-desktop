@@ -1,6 +1,7 @@
-#!/usr/bin/with-contenv bash
+#!/usr/bin/with-contenv /bin/bash
 set -euo pipefail
 umask 077
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 rm -f /run/dev-desktop-ready
 if [[ -z "${PASSWORD:-}" || "$PASSWORD" == *$'\n'* || "$PASSWORD" == *$'\r'* ]]; then
@@ -15,6 +16,18 @@ if [[ "${APP_SANDBOX:-0}" != 0 && "${APP_SANDBOX:-0}" != 1 ]]; then
     echo "APP_SANDBOX must be 0 or 1." >&2
     exit 1
 fi
+
+case "${DEVBOX_INSTALL_VENDOR_APPS:-0}" in
+    0) ;;
+    1)
+        if ! /usr/bin/env -i HOME=/root PATH="$PATH" \
+            /usr/local/sbin/devbox-install-vendor-apps "${COPILOT_APP_VERSION:-latest}"; then
+            echo "Devbox vendor app setup failed; fix the error above and restart the container." >&2
+            exit 1
+        fi
+        ;;
+    *) echo "DEVBOX_INSTALL_VENDOR_APPS must be 0 or 1." >&2; exit 1 ;;
+esac
 
 printf 'abc:%s\n' "$PASSWORD" | chpasswd
 if [[ "$(stat -c %u /usr/bin/sudo)" == 0 ]]; then
@@ -37,13 +50,17 @@ install -d -o abc -g abc -m 0700 "$XDG_RUNTIME_DIR"
 printf '%s' "$XDG_RUNTIME_DIR" > /run/s6/container_environment/XDG_RUNTIME_DIR
 
 # Configure the mounted home, not an image layer hidden by the bind mount.
-if ! s6-setuidgid abc env HOME=/config \
-    rea setup --client copilot_cli --client vscode --yes --json \
-    > /config/.local/state/dev-desktop/rea-setup.json \
-    2> /config/.local/state/dev-desktop/rea-setup.log; then
+clients=(--client copilot_cli)
+if [[ -x /usr/bin/code ]]; then
+    clients+=(--client vscode)
+fi
+if ! s6-setuidgid abc env HOME=/config /bin/sh -c '
+    exec /usr/local/bin/rea setup "$@" --yes --json \
+        > "$HOME/.local/state/dev-desktop/rea-setup.json" \
+        2> "$HOME/.local/state/dev-desktop/rea-setup.log"
+' devbox-rea "${clients[@]}"; then
     echo "REA setup failed. See ~/.local/state/dev-desktop/rea-setup.log and rea-setup.json." >&2
     exit 1
 fi
-chown abc:abc /config/.local/state/dev-desktop/rea-setup.*
 
 touch /run/dev-desktop-ready
