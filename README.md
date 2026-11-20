@@ -48,10 +48,9 @@ configure Git and Copilot, and check REA.
 
 ## Use the GHCR image
 
-The public target is published to `ghcr.io/long2know/devbox:latest` by the
-**Publish public image** workflow. GitHub Packages controls visibility separately
-from the repository. The account owner must make the package public before it
-can be pulled without signing in.
+Pull the public Linux amd64 image from `ghcr.io/long2know/devbox:latest`.
+No GitHub login is needed. The **Publish public image** workflow publishes
+both `latest` and a tag for the source commit.
 
 Run `./setup.sh` from the checkout if you don't already have a `.env`. Set the
 image reference in `.env`, then pull and start without building:
