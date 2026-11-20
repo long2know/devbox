@@ -1,0 +1,94 @@
+name: ${COMPOSE_PROJECT_NAME:-debox}
+
+services:
+  devbox:
+    image: ${DEVBOX_IMAGE:-devbox-cinnamon:latest}
+    pull_policy: never
+    container_name: ${DEVBOX_CONTAINER_NAME:-debox}
+    hostname: ${DEVBOX_CONTAINER_NAME:-debox}
+    build:
+      context: .
+      args:
+        DESKTOP_BASE: ${DESKTOP_BASE:-ghcr.io/linuxserver/baseimage-selkies:ubunturesolute}
+        NODE_IMAGE: ${NODE_IMAGE:-node:26-bookworm-slim}
+        DOTNET_LTS_IMAGE: ${DOTNET_LTS_IMAGE:-mcr.microsoft.com/dotnet/sdk:10.0}
+        DOTNET_CURRENT_IMAGE: ${DOTNET_CURRENT_IMAGE:-mcr.microsoft.com/dotnet/sdk:11.0}
+        OLLAMA_IMAGE: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+        COPILOT_CLI_VERSION: ${COPILOT_CLI_VERSION:-latest}
+        COPILOT_APP_VERSION: ${COPILOT_APP_VERSION:-latest}
+        REA_VERSION: ${REA_VERSION:-latest}
+    restart: unless-stopped
+    shm_size: 2gb
+    tmpfs:
+      - /run:exec,mode=0755
+      - /tmp:exec,mode=1777
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-Etc/UTC}
+      TITLE: ${DESKTOP_TITLE:-devbox}
+      HOME: /config
+      XDG_CONFIG_HOME: /config/.config
+      XDG_DATA_HOME: /config/.local/share
+      XDG_CACHE_HOME: /config/.cache
+      XDG_RUNTIME_DIR: /run/user/${PUID:-1000}
+      GH_CONFIG_DIR: /config/.config/gh
+      COPILOT_HOME: /config/.copilot
+      CUSTOM_USER: ${DESKTOP_USER:-developer}
+      PASSWORD: ${DESKTOP_PASSWORD:?Set a strong DESKTOP_PASSWORD in .env}
+      GH_TOKEN: ${GH_TOKEN:-}
+      COPILOT_GITHUB_TOKEN: ${COPILOT_GITHUB_TOKEN:-}
+      SUBFOLDER: ${BASE_PATH:-/}
+      APP_SANDBOX: ${APP_SANDBOX:-0}
+      OLLAMA_HOST: http://127.0.0.1:11434
+      OLLAMA_SERVER_HOST: ${OLLAMA_SERVER_HOST:-desktop-ollama}
+      OLLAMA_SERVER_PORT: ${OLLAMA_SERVER_PORT:-11434}
+      SELKIES_FILE_TRANSFERS: ${SELKIES_FILE_TRANSFERS:-}
+    volumes:
+      - type: bind
+        source: ${DEVBOX_DATA_DIR:-./data}/home
+        target: /config
+        bind:
+          create_host_path: true
+    ports:
+      - "${DESKTOP_BIND_ADDRESS:-127.0.0.1}:${DESKTOP_PORT:-4200}:${DESKTOP_BACKEND_PORT:-3001}"
+    networks:
+      - desktop
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  desktop-ollama:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    profiles: [ollama]
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-5m}
+      OLLAMA_CONTEXT_LENGTH: ${OLLAMA_CONTEXT_LENGTH:-8192}
+    volumes:
+      - type: bind
+        source: ${DEVBOX_DATA_DIR:-./data}/ollama
+        target: /root/.ollama
+        bind:
+          create_host_path: true
+    networks:
+      - desktop
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+networks:
+  desktop:
+    ipam:
+      config:
+        - subnet: ${DESKTOP_SUBNET:-10.203.86.0/24}

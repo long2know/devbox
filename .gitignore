@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+/data/
+secrets/
+*.key
+*.pem
+*.pfx
+*.log
+__pycache__/

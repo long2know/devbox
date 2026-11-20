@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+flags=(--ozone-platform=x11 --password-store=gnome-libsecret)
+if [[ "${APP_SANDBOX:-0}" == 0 ]]; then
+    flags+=(--no-sandbox)
+fi
+exec /usr/bin/code "${flags[@]}" "$@"

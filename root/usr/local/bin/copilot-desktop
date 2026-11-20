@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+import json
+import os
+from pathlib import Path
+import sys
+
+command = json.loads(
+    Path("/usr/local/share/dev-desktop/copilot-app-command.json").read_text()
+)
+command.extend(("--ozone-platform=x11", "--password-store=gnome-libsecret"))
+if os.environ.get("APP_SANDBOX", "0") == "0":
+    command.append("--no-sandbox")
+os.execvp(command[0], [*command, *sys.argv[1:]])

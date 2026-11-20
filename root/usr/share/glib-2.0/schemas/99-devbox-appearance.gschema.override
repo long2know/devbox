@@ -1,0 +1,12 @@
+[org.cinnamon.desktop.background]
+picture-uri='file:///usr/share/desktop-base/lines-theme/wallpaper/gnome-background.xml'
+picture-options='zoom'
+
+[org.cinnamon.desktop.interface]
+gtk-theme='Adwaita-dark'
+
+[org.x.apps.portal]
+color-scheme='prefer-dark'
+
+[org.gnome.desktop.interface]
+color-scheme='prefer-dark'

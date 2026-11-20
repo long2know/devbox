@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=VS Code (Development Desktop)
+Exec=/usr/local/bin/code-desktop %F
+Icon=vscode
+Terminal=false
+Categories=Development;IDE;

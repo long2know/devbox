@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+import argparse
+import json
+from pathlib import Path
+import subprocess
+import tempfile
+
+
+def probe_video(path):
+    return json.loads(subprocess.check_output(
+        [
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=codec_name,profile,pix_fmt",
+            "-of", "json", str(path),
+        ],
+        text=True,
+        timeout=15,
+    ))["streams"][0]
+
+
+def check_mkvtoolnix(directory):
+    print(subprocess.check_output(["mkvmerge", "--version"], text=True).splitlines()[0], flush=True)
+    source = directory / "libx265.mkv"
+    muxed = directory / "mkvtoolnix.mkv"
+    extracted = directory / "extracted.hevc"
+    title = "Devbox MKVToolNix verification"
+    subprocess.run(
+        ["mkvmerge", "--quiet", "--output", str(muxed), str(source)],
+        check=True, timeout=30,
+    )
+    subprocess.run(
+        ["mkvpropedit", "--quiet", str(muxed), "--edit", "info", "--set", f"title={title}"],
+        check=True, timeout=15,
+    )
+    metadata = json.loads(subprocess.check_output(
+        ["mkvmerge", "-J", str(muxed)], text=True, timeout=15
+    ))
+    tracks = metadata["tracks"]
+    if (
+        metadata["container"]["properties"].get("title") != title
+        or len(tracks) != 1
+        or tracks[0].get("type") != "video"
+        or tracks[0].get("properties", {}).get("codec_id") != "V_MPEGH/ISO/HEVC"
+    ):
+        raise RuntimeError("MKVToolNix did not preserve the expected video and metadata.")
+    subprocess.run(
+        ["mkvinfo", str(muxed)], check=True, stdout=subprocess.DEVNULL, timeout=15
+    )
+    subprocess.run(
+        ["mkvextract", str(muxed), "tracks", "--quiet", f"{tracks[0]['id']}:{extracted}"],
+        check=True, timeout=30,
+    )
+    result = probe_video(extracted)
+    expected = {"codec_name": "hevc", "profile": "Main 10", "pix_fmt": "yuv420p10le"}
+    if any(result.get(key) != value for key, value in expected.items()):
+        raise RuntimeError(f"MKVToolNix extraction changed the video format: {result}")
+    print("PASS: MKVToolNix mux, metadata edit, inspection, and 10-bit HEVC extraction", flush=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Verify video encoding and MKVToolNix round trips.")
+    parser.add_argument("--gpu", action="store_true", help="Also test NVIDIA H.264 and HEVC Main10.")
+    arguments = parser.parse_args()
+
+    version = subprocess.check_output(["ffmpeg", "-hide_banner", "-version"], text=True)
+    print(version.splitlines()[0], flush=True)
+    inventory = subprocess.check_output(
+        ["ffmpeg", "-hide_banner", "-encoders"], text=True, stderr=subprocess.STDOUT
+    )
+    encoders = {line.split()[1] for line in inventory.splitlines() if len(line.split()) >= 2}
+    missing = {"libx265", "h264_nvenc", "hevc_nvenc"} - encoders
+    if missing:
+        raise SystemExit("Required FFmpeg encoders are missing: " + ", ".join(sorted(missing)))
+
+    cases = [
+        (
+            "libx265", "hevc", "yuv420p10le", "Main 10",
+            ["-pix_fmt", "yuv420p10le", "-preset", "ultrafast",
+             "-x265-params", "pools=none:wpp=0:frame-threads=1:log-level=error"],
+        ),
+    ]
+    if arguments.gpu:
+        cases.extend([
+            (
+                "h264_nvenc", "h264", "yuv420p", None,
+                ["-pix_fmt", "yuv420p", "-preset", "p1"],
+            ),
+            (
+                "hevc_nvenc", "hevc", "yuv420p10le", "Main 10",
+                ["-pix_fmt", "p010le", "-profile:v", "main10", "-preset", "p1"],
+            ),
+        ])
+
+    with tempfile.TemporaryDirectory(prefix="devbox-ffmpeg-") as directory:
+        for encoder, codec, pixel_format, profile, options in cases:
+            output = Path(directory) / f"{encoder}.mkv"
+            subprocess.run(
+                [
+                    "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin",
+                    "-filter_threads", "1", "-f", "lavfi",
+                    "-i", "testsrc2=size=256x256:rate=5", "-frames:v", "2",
+                    "-an", "-threads", "1", "-c:v", encoder, *options, str(output),
+                ],
+                check=True,
+                timeout=60,
+            )
+            result = probe_video(output)
+            if (
+                result.get("codec_name") != codec
+                or result.get("pix_fmt") != pixel_format
+                or (profile is not None and result.get("profile") != profile)
+            ):
+                raise RuntimeError(f"{encoder} produced unexpected video: {result}")
+            print(f"PASS: {encoder} encoded {result}", flush=True)
+        check_mkvtoolnix(Path(directory))
+
+
+if __name__ == "__main__":
+    main()

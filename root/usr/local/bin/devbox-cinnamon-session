@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! /usr/local/bin/devbox-session-init; then
+    printf 'Devbox session setup needs attention; existing credentials were preserved. See the startup errors above.\n' >&2
+fi
+
+unset PASSWORD
+dbus-update-activation-environment PASSWORD=
+
+marker="$HOME/.local/state/devbox/cinnamon-desktop-defaults-v1"
+if [[ ! -f "$marker" ]]; then
+    gsettings set org.cinnamon.desktop.screensaver lock-enabled false
+    gsettings set org.cinnamon.desktop.session idle-delay 0
+    mkdir -p "$(dirname "$marker")"
+    touch "$marker"
+fi
+exec /usr/bin/cinnamon-session --session cinnamon

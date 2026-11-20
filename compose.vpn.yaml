@@ -1,0 +1,41 @@
+services:
+  vpn:
+    image: ${GLUETUN_IMAGE:-qmcgaw/gluetun:latest}
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      TZ: ${TZ:-Etc/UTC}
+      VPN_SERVICE_PROVIDER: nordvpn
+      VPN_TYPE: openvpn
+      OPENVPN_USER: ${NORDVPN_USERNAME:?Set your NordVPN service username in .env}
+      OPENVPN_PASSWORD: ${NORDVPN_PASSWORD:?Set your NordVPN service password in .env}
+      SERVER_COUNTRIES: ${NORDVPN_COUNTRIES:-United States}
+      FIREWALL_INPUT_PORTS: "${DESKTOP_BACKEND_PORT:-3001}"
+      FIREWALL_OUTBOUND_SUBNETS: ${VPN_ALLOWED_SUBNETS:-10.203.86.0/24}
+    volumes:
+      - type: bind
+        source: ${DEVBOX_DATA_DIR:-./data}/gluetun
+        target: /gluetun
+        bind:
+          create_host_path: true
+    ports:
+      - "${DESKTOP_BIND_ADDRESS:-127.0.0.1}:${DESKTOP_PORT:-4200}:${DESKTOP_BACKEND_PORT:-3001}"
+    networks:
+      - desktop
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  devbox:
+    network_mode: service:vpn
+    networks: !reset []
+    ports: !reset []
+    depends_on:
+      vpn:
+        condition: service_healthy
+        restart: true

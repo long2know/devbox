@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+
+LOGIN_COLLECTION = "/org/freedesktop/secrets/collection/login"
+
+
+def command(*arguments, input_text=None, environment=None):
+    result = subprocess.run(
+        list(arguments),
+        input=input_text,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=True,
+        timeout=30,
+    )
+    return result.stdout.strip()
+
+
+def secret_service(path, method, *arguments):
+    return command(
+        "gdbus",
+        "call",
+        "--session",
+        "--dest",
+        "org.freedesktop.secrets",
+        "--object-path",
+        path,
+        "--method",
+        method,
+        *arguments,
+    )
+
+
+def initialize_keyring(password):
+    if not password or "\n" in password or "\r" in password:
+        raise ValueError("A nonempty desktop password is required for encrypted keyring setup.")
+
+    runtime = os.environ.get("XDG_RUNTIME_DIR")
+    if not runtime:
+        raise ValueError("XDG_RUNTIME_DIR is required for keyring initialization.")
+    control = str(Path(runtime) / "keyring")
+
+    # The password stays on stdin, never in argv, logs, or a startup file.
+    command(
+        "gnome-keyring-daemon",
+        "--unlock",
+        "--control-directory",
+        control,
+        input_text=password,
+    )
+    command(
+        "gnome-keyring-daemon",
+        "--start",
+        "--components=secrets",
+        "--control-directory",
+        control,
+    )
+    locked = secret_service(
+        LOGIN_COLLECTION,
+        "org.freedesktop.DBus.Properties.Get",
+        "org.freedesktop.Secret.Collection",
+        "Locked",
+    )
+    if locked != "(<false>,)":
+        raise RuntimeError(
+            "The existing Login keyring could not be unlocked with the desktop password. "
+            "Use its current password to change its password; no keyring was reset."
+        )
+
+    default = secret_service(
+        "/org/freedesktop/secrets",
+        "org.freedesktop.Secret.Service.ReadAlias",
+        "default",
+    )
+    if default == "(objectpath '/',)":
+        secret_service(
+            "/org/freedesktop/secrets",
+            "org.freedesktop.Secret.Service.SetAlias",
+            "default",
+            LOGIN_COLLECTION,
+        )
+    elif default != f"(objectpath '{LOGIN_COLLECTION}',)":
+        raise RuntimeError(
+            "An existing non-Login default keyring was preserved. Unlock it once and "
+            "enable automatic unlocking with the Login keyring; its credentials were not moved or deleted."
+        )
+
+
+def initialize_browser(home):
+    marker = home / ".local/state/devbox/google-browser-default-cinnamon-v1"
+    if marker.exists():
+        return
+    environment = {
+        **os.environ,
+        "XDG_CURRENT_DESKTOP": "X-Cinnamon",
+    }
+    environment.pop("PASSWORD", None)
+    environment.pop("KDE_SESSION_VERSION", None)
+    environment.pop("KDE_FULL_SESSION", None)
+    command(
+        "xdg-settings",
+        "set",
+        "default-web-browser",
+        "dev-chrome.desktop",
+        environment=environment,
+    )
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.touch()
+
+
+def main():
+    failed = False
+    for name, operation in (
+        ("Encrypted keyring", lambda: initialize_keyring(os.environ.get("PASSWORD"))),
+        ("Browser defaults", lambda: initialize_browser(Path.home())),
+    ):
+        try:
+            operation()
+        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+            print(f"{name}: {error}", file=sys.stderr)
+            failed = True
+    return int(failed)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

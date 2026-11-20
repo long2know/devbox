@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=GitHub Copilot (Development Desktop)
+Exec=/usr/local/bin/copilot-desktop %U
+Icon=applications-development
+Terminal=false
+Categories=Development;

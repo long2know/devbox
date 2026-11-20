@@ -1,0 +1,49 @@
+#!/usr/bin/with-contenv bash
+set -euo pipefail
+umask 077
+
+rm -f /run/dev-desktop-ready
+if [[ -z "${PASSWORD:-}" || "$PASSWORD" == *$'\n'* || "$PASSWORD" == *$'\r'* ]]; then
+    echo "PASSWORD must be nonempty and contain no newline characters." >&2
+    exit 1
+fi
+if [[ ! "${SUBFOLDER:-/}" =~ ^/([A-Za-z0-9_-]+/)*$ ]]; then
+    echo "SUBFOLDER must be / or a slash-terminated path such as /desktop/." >&2
+    exit 1
+fi
+if [[ "${APP_SANDBOX:-0}" != 0 && "${APP_SANDBOX:-0}" != 1 ]]; then
+    echo "APP_SANDBOX must be 0 or 1." >&2
+    exit 1
+fi
+
+printf 'abc:%s\n' "$PASSWORD" | chpasswd
+if [[ "$(stat -c %u /usr/bin/sudo)" == 0 ]]; then
+    printf 'abc ALL=(ALL:ALL) PASSWD: ALL\n' > /etc/sudoers.d/99-dev-desktop
+    chmod 0440 /etc/sudoers.d/99-dev-desktop
+    visudo -cf /etc/sudoers.d/99-dev-desktop
+else
+    echo "This root filesystem does not preserve sudo ownership; administer with Compose exec --user root." >&2
+fi
+
+install -d -o abc -g abc -m 0700 \
+    /config/.copilot /config/.config /config/.config/gh \
+    /config/.local /config/.local/state /config/.local/state/dev-desktop \
+    /config/.local/bin /config/.dotnet /config/.dotnet/tools /config/projects
+chmod 0700 /config
+
+export XDG_RUNTIME_DIR="/run/user/$(id -u abc)"
+install -d -m 0755 /run/user
+install -d -o abc -g abc -m 0700 "$XDG_RUNTIME_DIR"
+printf '%s' "$XDG_RUNTIME_DIR" > /run/s6/container_environment/XDG_RUNTIME_DIR
+
+# Configure the mounted home, not an image layer hidden by the bind mount.
+if ! s6-setuidgid abc env HOME=/config \
+    rea setup --client copilot_cli --client vscode --yes --json \
+    > /config/.local/state/dev-desktop/rea-setup.json \
+    2> /config/.local/state/dev-desktop/rea-setup.log; then
+    echo "REA setup failed. See ~/.local/state/dev-desktop/rea-setup.log and rea-setup.json." >&2
+    exit 1
+fi
+chown abc:abc /config/.local/state/dev-desktop/rea-setup.*
+
+touch /run/dev-desktop-ready

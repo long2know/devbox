@@ -1,0 +1,15 @@
+#!/usr/bin/with-contenv bash
+set -euo pipefail
+
+host="${OLLAMA_SERVER_HOST:-desktop-ollama}"
+port="${OLLAMA_SERVER_PORT:-11434}"
+if [[ ! "$host" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ || ! "$port" =~ ^[0-9]+$ ]] \
+    || ((10#$port < 1 || 10#$port > 65535)); then
+    echo "OLLAMA_SERVER_HOST must be a hostname/IPv4 address and OLLAMA_SERVER_PORT a valid port." >&2
+    exit 1
+fi
+
+# Copilot discovers loopback Ollama servers, not Docker service addresses.
+exec s6-setuidgid abc socat \
+    TCP4-LISTEN:11434,bind=127.0.0.1,reuseaddr,fork \
+    "TCP4:${host}:${port}"
