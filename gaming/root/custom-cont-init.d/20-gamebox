@@ -1,0 +1,26 @@
+#!/usr/bin/with-contenv /bin/bash
+set -euo pipefail
+umask 077
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+rm -f /run/dev-desktop-ready
+if [[ "$GAMEBOX_INSTALL_VENDOR_APPS" == 1 ]]; then
+    if ! env -i HOME=/root PATH="$PATH" /usr/local/sbin/gamebox-install-chrome; then
+        echo "Gamebox Chrome installation failed; fix the error above and restart the container." >&2
+        exit 1
+    fi
+fi
+
+printf 'abc:%s\n' "$PASSWORD" | chpasswd
+printf 'abc ALL=(ALL:ALL) PASSWD: ALL\n' > /etc/sudoers.d/99-gamebox
+chmod 0440 /etc/sudoers.d/99-gamebox
+visudo -cf /etc/sudoers.d/99-gamebox
+
+install -d -o abc -g abc -m 0700 /config/.config /config/.local /config/.local/state
+chmod 0700 /config
+
+runtime="/run/user/$(id -u abc)"
+install -d -m 0755 /run/user
+install -d -o abc -g abc -m 0700 "$runtime"
+printf '%s' "$runtime" > /run/s6/container_environment/XDG_RUNTIME_DIR
+touch /run/dev-desktop-ready

@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+umask 022
+
+if [[ "$(dpkg-query -W -f='${db:Status-Status}' google-chrome-stable 2>/dev/null)" != installed ]]; then
+    scratch="$(mktemp -d /tmp/gamebox-chrome.XXXXXXXX)"
+    trap 'rm -f -- "$scratch/google.gpg"; rmdir -- "$scratch"' EXIT
+
+    curl -fsSL --retry 2 --max-time 60 https://dl.google.com/linux/linux_signing_key.pub \
+        | gpg --batch --dearmor -o "$scratch/google.gpg"
+    install -D -m 0644 "$scratch/google.gpg" /etc/apt/keyrings/gamebox-google.gpg
+    printf '%s\n' \
+        'deb [arch=amd64 signed-by=/etc/apt/keyrings/gamebox-google.gpg] https://dl.google.com/linux/chrome/deb/ stable main' \
+        > /etc/apt/sources.list.d/google-chrome.list
+    apt-get -o Acquire::Retries=2 update --error-on=any
+    apt-get install -y --no-install-recommends google-chrome-stable
+    apt-get clean
+    find /var/lib/apt/lists -mindepth 1 -delete
+fi
+
+install -D -m 0644 /usr/local/share/gamebox/dev-chrome.desktop /usr/local/share/applications/dev-chrome.desktop
+ln -sfn /usr/local/bin/chrome /usr/local/bin/x-www-browser
+ln -sfn /usr/local/bin/chrome /usr/local/bin/google-chrome
+for launcher in /usr/share/applications/{google-chrome,com.google.Chrome}.desktop; do
+    if [[ -f "$launcher" ]]; then
+        sed -i -E 's@^Exec=/usr/bin/google-chrome(-stable)?([[:space:]]|$)@Exec=/usr/local/bin/chrome\2@' "$launcher"
+    fi
+done
+echo "Gamebox Chrome is installed."

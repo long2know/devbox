@@ -1,0 +1,14 @@
+services:
+  gamebox:
+    runtime: nvidia
+    gpus: all
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/nvidia-modeset:/dev/nvidia-modeset
+    environment:
+      NVIDIA_VISIBLE_DEVICES: ${GAMEBOX_NVIDIA_VISIBLE_DEVICES:-all}
+      NVIDIA_DRIVER_CAPABILITIES: all
+      DRINODE: ${GAMEBOX_GPU_RENDER_NODE:-/dev/dri/renderD128}
+      DRI_NODE: ${GAMEBOX_GPU_RENDER_NODE:-/dev/dri/renderD128}
+      DISABLE_DRI3: "false"
+      __GLX_VENDOR_LIBRARY_NAME: nvidia

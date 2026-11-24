@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+
+args=()
+if env -u LD_PRELOAD bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid /bin/true >/dev/null 2>&1; then
+    unset BWRAP
+else
+    export BWRAP="${BWRAP:-$HOME/.local/bin/bwrap}"
+    if [[ ! -x "$BWRAP" ]]; then
+        echo "Steam needs working bubblewrap or Selkies' PRoot fallback ($BWRAP)." >&2
+        exit 1
+    fi
+    args+=(-no-cef-sandbox)
+fi
+
+if [[ ! -v NO_GAMEPAD ]]; then
+    export SELKIES_JS_SOCKET_PATH="${SELKIES_JS_SOCKET_PATH:-${XDG_RUNTIME_DIR:?No Selkies runtime directory}}"
+    # Steam and Proton can start either 64-bit or 32-bit games.
+    export LD_PRELOAD=/usr/lib/selkies_input_interposer.so:/usr/lib/libudev.so.1.0.0-fake:/usr/lib/selkies_input_interposer_32.so:/usr/lib/libudev.so.1.0.0-fake_32
+fi
+exec /usr/games/steam.distrib "${args[@]}" "$@"

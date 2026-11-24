@@ -1,0 +1,44 @@
+name: ${COMPOSE_PROJECT_NAME:-gamebox}
+
+services:
+  gamebox:
+    platform: linux/amd64
+    image: ${GAMEBOX_IMAGE:-gamebox-cinnamon:latest}
+    pull_policy: never
+    container_name: ${GAMEBOX_CONTAINER_NAME:-gamebox}
+    hostname: ${GAMEBOX_CONTAINER_NAME:-gamebox}
+    build:
+      context: ..
+      dockerfile: gaming/Dockerfile
+      target: ${GAMEBOX_BUILD_TARGET:-full}
+    restart: unless-stopped
+    shm_size: 2gb
+    tmpfs:
+      - /run:exec,mode=0755
+      - /tmp:exec,mode=1777
+    environment:
+      PUID: ${GAMEBOX_PUID:-1000}
+      PGID: ${GAMEBOX_PGID:-1000}
+      TZ: ${GAMEBOX_TZ:-Etc/UTC}
+      TITLE: ${GAMEBOX_TITLE:-gamebox}
+      CUSTOM_USER: ${GAMEBOX_USER:-developer}
+      PASSWORD: ${GAMEBOX_PASSWORD:?Set a strong GAMEBOX_PASSWORD in .env}
+      SUBFOLDER: ${GAMEBOX_BASE_PATH:-/gamebox}
+      APP_SANDBOX: ${GAMEBOX_APP_SANDBOX:-0}
+      GAMEBOX_INSTALL_VENDOR_APPS: ${GAMEBOX_INSTALL_VENDOR_APPS:-0}
+    volumes:
+      - type: bind
+        source: ${GAMEBOX_DATA_DIR:-./data}/home
+        target: /config
+      - type: bind
+        source: ${GAMEBOX_STEAM_LIBRARY_DIR:-${GAMEBOX_DATA_DIR:-./data}/games}
+        target: /games
+        bind:
+          create_host_path: false
+    ports:
+      - "${GAMEBOX_BIND_ADDRESS:-127.0.0.1}:${GAMEBOX_PORT:-4201}:${GAMEBOX_BACKEND_PORT:-3001}"
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

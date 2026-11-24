@@ -1,0 +1,13 @@
+**
+!root/defaults/startwm.sh
+!root/usr/local/bin/chrome
+!root/usr/local/bin/desktop-healthcheck
+!root/usr/local/bin/devbox-cinnamon-session
+!root/usr/local/bin/devbox-session-init
+!root/usr/local/share/dev-desktop/vendor-launchers/dev-chrome.desktop
+!root/usr/share/glib-2.0/schemas/99-devbox-appearance.gschema.override
+!gaming/THIRD_PARTY.md
+!gaming/root/custom-cont-init.d/20-gamebox
+!gaming/root/usr/games/steam
+!gaming/root/usr/local/sbin/gamebox-entrypoint
+!gaming/root/usr/local/sbin/gamebox-install-chrome

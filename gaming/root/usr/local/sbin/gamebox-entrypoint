@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+if [[ -z "${PASSWORD:-}" || "$PASSWORD" == *$'\n'* || "$PASSWORD" == *$'\r'* ]]; then
+    echo "Gamebox requires a nonempty PASSWORD without line breaks." >&2
+    exit 1
+fi
+
+base_path="${SUBFOLDER:-/gamebox}"
+if [[ "$base_path" != / && ! "$base_path" =~ ^(/[A-Za-z0-9_-]+)+/?$ ]]; then
+    echo "GAMEBOX_BASE_PATH must be / or a path such as /gaming or /gaming/." >&2
+    exit 1
+fi
+export SUBFOLDER="${base_path%/}/"
+
+validate_flag() {
+    case "$2" in
+        0|1) ;;
+        *) echo "$1 must be 0 or 1." >&2; exit 1 ;;
+    esac
+}
+validate_flag APP_SANDBOX "$APP_SANDBOX"
+validate_flag GAMEBOX_INSTALL_VENDOR_APPS "$GAMEBOX_INSTALL_VENDOR_APPS"
+
+exec /init "$@"

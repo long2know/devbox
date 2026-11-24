@@ -6,6 +6,9 @@ and optional Ollama inference, NVIDIA acceleration, and VPN routing. The desktop
 starts with the Lines wallpaper, dark mode, and a folder icon for Nemo. You can
 change those defaults in Cinnamon and keep your choices across rebuilds.
 
+For a separate gaming desktop with Steam and no Devbox toolchain, see
+[Gamebox](gaming/README.md).
+
 Both variants use LinuxServer's Ubuntu/Selkies base and the same Compose ports,
 home mount, and keyring integration. Images don't contain models, credentials,
 or personal deployment data.
