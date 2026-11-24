@@ -67,6 +67,9 @@ RUN --mount=type=bind,source=root,target=/image-root \
         > /usr/share/doc/devbox/apt-sources.tsv && \
     /usr/local/bin/desktop-media-smoke-test
 
+RUN --mount=type=bind,source=nginx/add-selkies-subpath-redirect.sh,target=/build/add-selkies-subpath-redirect.sh \
+    /bin/sh /build/add-selkies-subpath-redirect.sh /defaults/default.conf
+
 ENV HOME=/config \
     TITLE=devbox \
     PIXELFLUX_WAYLAND=false \

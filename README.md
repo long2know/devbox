@@ -217,6 +217,8 @@ guide](https://docs.ollama.com/docker) for server-specific options.
   An nginx server on a different machine cannot use the Docker host's loopback;
   use a restricted, reachable backend and validate TLS if proxying to
   the HTTPS listener. The web client always uses the proxy's HTTPS URL.
+  Keep the trailing slash in `BASE_PATH`; the embedded nginx redirects
+  requests for the prefix without it.
 
 This is a **single-user development desktop**, not a sandbox for hostile sites
 or untrusted code. Chrome and Electron launchers default to `--no-sandbox`

@@ -1,4 +1,5 @@
 **
+!nginx/add-selkies-subpath-redirect.sh
 !root/defaults/startwm.sh
 !root/usr/local/bin/chrome
 !root/usr/local/bin/desktop-healthcheck

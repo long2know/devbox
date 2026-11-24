@@ -46,6 +46,38 @@ def healthy(name, timeout=240):
     raise RuntimeError(f"Desktop failed to become healthy:\n{docker('logs', name)[-10000:]}")
 
 
+def check_desktop_https(name, base_path):
+    docker("exec", "--interactive", name, "python3", "-", base_path, input_text="""
+import base64
+from contextlib import closing
+import http.client
+import json
+import os
+import ssl
+import sys
+
+base_path = sys.argv[1]
+context = ssl.create_default_context(cafile="/config/ssl/cert.pem")
+context.check_hostname = False
+with closing(http.client.HTTPSConnection("127.0.0.1", 3001, context=context, timeout=15)) as conn:
+    if base_path != "/":
+        conn.request("GET", base_path.rstrip("/") + "?smoke=1")
+        response = conn.getresponse()
+        redirect = response.status, response.getheader("Location")
+        assert redirect == (308, base_path + "?smoke=1"), redirect
+        response.read()
+    conn.request("GET", base_path)
+    response = conn.getresponse()
+    assert response.status == 401 and "Basic" in response.getheader("WWW-Authenticate", "")
+    response.read()
+    credential = f"{os.environ['CUSTOM_USER']}:{os.environ['PASSWORD']}"
+    headers = {"Authorization": "Basic " + base64.b64encode(credential.encode()).decode()}
+    conn.request("GET", base_path + "manifest.json", headers=headers)
+    response = conn.getresponse()
+    assert response.status == 200 and json.load(response)["start_url"] == base_path
+""")
+
+
 def check_persistent_state(home):
     config = json.loads((home / ".copilot/mcp-config.json").read_text())
     if not {"rea", "preserved-smoke-entry"} <= config["mcpServers"].keys():

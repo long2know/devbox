@@ -11,7 +11,8 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tests"))
 from runtime_smoke import (
-    check_cinnamon_appearance, check_keyring, docker, healthy, launch_desktop,
+    check_cinnamon_appearance, check_desktop_https, check_keyring, docker, healthy,
+    launch_desktop,
 )
 
 
@@ -47,29 +48,6 @@ else
 fi
 """, "check-packages", variant,
     )
-
-
-def check_https(name):
-    docker("exec", "--interactive", name, "python3", "-", input_text="""
-import base64
-from contextlib import closing
-import http.client
-import os
-import ssl
-
-ssl_context = ssl.create_default_context(cafile="/config/ssl/cert.pem")
-ssl_context.check_hostname = False
-with closing(http.client.HTTPSConnection("127.0.0.1", 3001, context=ssl_context, timeout=10)) as conn:
-    conn.request("GET", "/gaming/")
-    response = conn.getresponse()
-    assert response.status == 401 and "Basic" in response.getheader("WWW-Authenticate", "")
-    response.read()
-    credential = f"{os.environ['CUSTOM_USER']}:{os.environ['PASSWORD']}"
-    headers = {"Authorization": "Basic " + base64.b64encode(credential.encode()).decode()}
-    conn.request("GET", "/gaming/manifest.json", headers=headers)
-    response = conn.getresponse()
-    assert response.status == 200 and b'/gaming/' in response.read()
-""")
 
 
 def check_steam_launcher(name):
@@ -129,7 +107,7 @@ def main():
         )
         try:
             healthy(name, timeout=600)
-            check_https(name)
+            check_desktop_https(name, "/gaming/")
             if not args.install_chrome:
                 check_cinnamon_appearance(name)
             check_keyring(name, create=True)

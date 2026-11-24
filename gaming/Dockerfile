@@ -42,6 +42,9 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get purge -y --autoremove \
     dpkg-query -W -f='${binary:Package}\t${Version}\t${source:Package}\t${source:Version}\n' \
         > /usr/share/doc/gamebox/apt-sources.tsv
 
+RUN --mount=type=bind,source=nginx/add-selkies-subpath-redirect.sh,target=/build/add-selkies-subpath-redirect.sh \
+    /bin/sh /build/add-selkies-subpath-redirect.sh /defaults/default.conf
+
 ENV HOME=/config \
     TITLE=gamebox \
     SUBFOLDER=/gamebox/ \

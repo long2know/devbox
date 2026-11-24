@@ -7,7 +7,12 @@ import subprocess
 import tempfile
 import uuid
 
-from runtime_smoke import check_cinnamon_appearance, check_keyring, docker, healthy
+from runtime_smoke import (
+    check_cinnamon_appearance, check_desktop_https, check_keyring, docker, healthy,
+)
+
+
+BASE_PATH = "/devbox/"
 
 
 ABSENT_VENDOR_APPS = r"""
@@ -64,20 +69,6 @@ printf '%s  %s\n' "$reviewed" "$cli/LICENSE.md" "$reviewed" "$platform/LICENSE.m
            "--entrypoint", "/bin/bash", image, "-c", script)
 
 
-def assert_https(name):
-    docker("exec", name, "python3", "-c", """
-from contextlib import closing
-import http.client
-import ssl
-context = ssl.create_default_context(cafile="/config/ssl/cert.pem")
-context.check_hostname = False
-with closing(http.client.HTTPSConnection("127.0.0.1", 3001, context=context, timeout=15)) as probe:
-    probe.request("GET", "/")
-    response = probe.getresponse()
-    assert response.status == 401 and "Basic" in response.getheader("WWW-Authenticate", "")
-""")
-
-
 def boot(name, image, home, *, vendor=False):
     docker(
         "run", "--detach", "--pull", "never", "--name", name,
@@ -86,6 +77,7 @@ def boot(name, image, home, *, vendor=False):
         "--mount", f"type=bind,src={home},dst=/config",
         "--env", f"PUID={os.getuid()}", "--env", f"PGID={os.getgid()}",
         "--env", "CUSTOM_USER=smoke", "--env", "PASSWORD=devbox-public-fixture1!",
+        "--env", f"SUBFOLDER={BASE_PATH}",
         "--env", f"DEVBOX_INSTALL_VENDOR_APPS={int(vendor)}",
         image,
     )
@@ -102,7 +94,7 @@ def remove(name):
 def check_vendor_recreation(name, image, home):
     boot(name, image, home, vendor=True)
     healthy(name, timeout=600)
-    assert_https(name)
+    check_desktop_https(name, BASE_PATH)
     docker("exec", name, "bash", "-c", INSTALLED_VENDOR_APPS)
     check_keyring(name, create=True)
     docker("exec", "--user", "abc", name, "sh", "-ec",
@@ -115,7 +107,7 @@ def check_vendor_recreation(name, image, home):
     remove(name)
     boot(name, image, home, vendor=True)
     healthy(name, timeout=600)
-    assert_https(name)
+    check_desktop_https(name, BASE_PATH)
     docker("exec", name, "bash", "-c", INSTALLED_VENDOR_APPS)
     check_keyring(name)
     profile_fixture = home / ".config/google-chrome/Default/devbox-fixture"
@@ -137,7 +129,7 @@ def main():
             boot(name, args.image, home)
             healthy(name)
             docker("exec", name, "bash", "-c", ABSENT_VENDOR_APPS)
-            assert_https(name)
+            check_desktop_https(name, BASE_PATH)
             check_cinnamon_appearance(name)
             assert not (home / ".local/state/devbox/google-browser-default-cinnamon-v1").exists()
             print("Public base boots offline without vendor apps and serves authenticated TLS.", flush=True)

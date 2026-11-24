@@ -2,5 +2,6 @@
 !Dockerfile
 !install.sh
 !THIRD_PARTY.md
+!nginx/add-selkies-subpath-redirect.sh
 !root/
 !root/**

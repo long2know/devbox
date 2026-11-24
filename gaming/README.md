@@ -34,8 +34,9 @@ docker compose up -d --wait --wait-timeout 600
 ```
 
 By default, open **`https://localhost:4201/gamebox/`** and sign in with
-`GAMEBOX_USER` and `GAMEBOX_PASSWORD`. The first boot generates a self-signed
-certificate as [Devbox does](../FIRST_RUN.md#open-the-desktop).
+`GAMEBOX_USER` and `GAMEBOX_PASSWORD`. Opening `/gamebox` redirects to
+`/gamebox/`. The first boot generates a self-signed certificate as
+[Devbox does](../FIRST_RUN.md#open-the-desktop).
 To build locally without Chrome, set `GAMEBOX_BUILD_TARGET=public`.
 
 To use the published image instead, set
