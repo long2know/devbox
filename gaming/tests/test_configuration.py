@@ -9,7 +9,7 @@ GAMING = Path(__file__).resolve().parents[1]
 
 
 class GameboxConfigurationTests(unittest.TestCase):
-    def compose(self, *, gpu=False, **variables):
+    def compose(self, *, gpu=False, env_file=".env.example", **variables):
         environment = {
             key: value
             for key, value in os.environ.items()
@@ -20,7 +20,7 @@ class GameboxConfigurationTests(unittest.TestCase):
         if gpu:
             files += ["-f", "compose.gpu.yaml"]
         return subprocess.run(
-            ["docker", "compose", *files, "--env-file", ".env.example",
+            ["docker", "compose", *files, "--env-file", env_file,
              "config", "--format", "json"],
             cwd=GAMING,
             env=environment,
@@ -84,6 +84,16 @@ class GameboxConfigurationTests(unittest.TestCase):
         self.assertEqual(environment["GAMEBOX_INSTALL_VENDOR_APPS"], "1")
         self.assertEqual(environment["DRINODE"], "/dev/dri/renderD129")
         self.assertEqual(environment["DRI_NODE"], "/dev/dri/renderD129")
+
+    def test_gamebox_defaults_to_pacific_and_honors_timezone_override(self):
+        for options, expected in (
+            ({}, "America/Los_Angeles"),
+            ({"env_file": "/dev/null"}, "America/Los_Angeles"),
+            ({"GAMEBOX_TZ": "Asia/Tokyo"}, "Asia/Tokyo"),
+        ):
+            with self.subTest(options=options):
+                desktop = self.configuration(**options)["services"]["gamebox"]
+                self.assertEqual(desktop["environment"]["TZ"], expected)
 
     def test_empty_password_is_rejected(self):
         result = self.compose(GAMEBOX_PASSWORD="")

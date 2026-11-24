@@ -46,6 +46,17 @@ def healthy(name, timeout=240):
     raise RuntimeError(f"Desktop failed to become healthy:\n{docker('logs', name)[-10000:]}")
 
 
+def check_desktop_timezone(name):
+    docker("exec", name, "sh", "-ec", """
+if [ "${TZ:-}" != America/Los_Angeles ] ||
+    [ "$(date -d '2026-01-15 12:00 UTC' +%:z)" != -08:00 ] ||
+    [ "$(date -d '2026-07-15 12:00 UTC' +%:z)" != -07:00 ]; then
+    printf 'Expected Pacific time with daylight saving; TZ=%s, current time=%s\\n' "${TZ:-}" "$(date -Is)" >&2
+    exit 1
+fi
+""")
+
+
 def check_desktop_https(name, base_path):
     docker("exec", "--interactive", name, "python3", "-", base_path, input_text="""
 import base64

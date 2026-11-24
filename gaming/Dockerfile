@@ -47,6 +47,7 @@ RUN --mount=type=bind,source=nginx/add-selkies-subpath-redirect.sh,target=/build
 
 ENV HOME=/config \
     TITLE=gamebox \
+    TZ=America/Los_Angeles \
     SUBFOLDER=/gamebox/ \
     PIXELFLUX_WAYLAND=false \
     START_DOCKER=false \

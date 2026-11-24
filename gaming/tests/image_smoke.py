@@ -11,8 +11,8 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tests"))
 from runtime_smoke import (
-    check_cinnamon_appearance, check_desktop_https, check_keyring, docker, healthy,
-    launch_desktop,
+    check_cinnamon_appearance, check_desktop_https, check_desktop_timezone,
+    check_keyring, docker, healthy, launch_desktop,
 )
 
 
@@ -110,6 +110,7 @@ def main():
         )
         try:
             healthy(name, timeout=600)
+            check_desktop_timezone(name)
             check_desktop_https(name, "/gaming/")
             if not args.install_chrome:
                 check_cinnamon_appearance(name)

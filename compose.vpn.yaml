@@ -7,7 +7,7 @@ services:
     devices:
       - /dev/net/tun:/dev/net/tun
     environment:
-      TZ: ${TZ:-Etc/UTC}
+      TZ: ${TZ:-America/Los_Angeles}
       VPN_SERVICE_PROVIDER: nordvpn
       VPN_TYPE: openvpn
       OPENVPN_USER: ${NORDVPN_USERNAME:?Set your NordVPN service username in .env}

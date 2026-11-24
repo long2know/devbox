@@ -22,6 +22,7 @@ class ComposeConfigurationTests(unittest.TestCase):
         env_file=None,
         vendor_apps=None,
         image=None,
+        timezone=None,
     ):
         environment = {
             **os.environ,
@@ -37,6 +38,10 @@ class ComposeConfigurationTests(unittest.TestCase):
         environment.pop("DEVBOX_CONTAINER_NAME", None)
         environment.pop("DEVBOX_DATA_DIR", None)
         environment.pop("DEVBOX_INSTALL_VENDOR_APPS", None)
+        if timezone is None:
+            environment.pop("TZ", None)
+        else:
+            environment["TZ"] = timezone
         if vendor_apps is not None:
             environment["DEVBOX_INSTALL_VENDOR_APPS"] = vendor_apps
         if image is not None:
@@ -181,6 +186,19 @@ class ComposeConfigurationTests(unittest.TestCase):
                     )
                     if ollama:
                         self.assertFalse(services["desktop-ollama"].get("ports"))
+
+    def test_desktop_and_vpn_default_to_pacific_and_honor_timezone_override(self):
+        for env_file, timezone, expected in (
+            (None, None, "America/Los_Angeles"),
+            ("/dev/null", None, "America/Los_Angeles"),
+            ("/dev/null", "Asia/Tokyo", "Asia/Tokyo"),
+        ):
+            with self.subTest(env_file=env_file, timezone=timezone):
+                result = self.compose("--vpn", env_file=env_file, timezone=timezone)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                services = json.loads(result.stdout)["services"]
+                self.assertEqual(services["devbox"]["environment"]["TZ"], expected)
+                self.assertEqual(services["vpn"]["environment"]["TZ"], expected)
 
     def test_empty_desktop_password_is_rejected(self):
         result = self.compose(password="")

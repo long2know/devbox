@@ -72,6 +72,7 @@ RUN --mount=type=bind,source=nginx/add-selkies-subpath-redirect.sh,target=/build
 
 ENV HOME=/config \
     TITLE=devbox \
+    TZ=America/Los_Angeles \
     PIXELFLUX_WAYLAND=false \
     XDG_CONFIG_HOME=/config/.config \
     NPM_CONFIG_PREFIX=/config/.local \

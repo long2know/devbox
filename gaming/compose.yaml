@@ -19,7 +19,7 @@ services:
     environment:
       PUID: ${GAMEBOX_PUID:-1000}
       PGID: ${GAMEBOX_PGID:-1000}
-      TZ: ${GAMEBOX_TZ:-Etc/UTC}
+      TZ: ${GAMEBOX_TZ:-America/Los_Angeles}
       TITLE: ${GAMEBOX_TITLE:-gamebox}
       CUSTOM_USER: ${GAMEBOX_USER:-developer}
       PASSWORD: ${GAMEBOX_PASSWORD:?Set a strong GAMEBOX_PASSWORD in .env}

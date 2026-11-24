@@ -22,6 +22,8 @@ with `chmod 600 .env`, and set `GAMEBOX_PASSWORD` to a strong unique password
 (for example, generate one with `openssl rand -hex 24`). Set `GAMEBOX_PUID`
 and `GAMEBOX_PGID` to the host UID and GID that own the files. If moving a
 home from Devbox, see [Copy an existing home](#copy-an-existing-home) first.
+The desktop defaults to Pacific time (`America/Los_Angeles`); set
+`GAMEBOX_TZ` in `.env` to override it.
 
 Steam's client and default library live in its persistent home, `/config`.
 The separate `/games` bind is for extra libraries. It defaults to `games/`

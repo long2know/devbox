@@ -8,7 +8,8 @@ import tempfile
 import uuid
 
 from runtime_smoke import (
-    check_cinnamon_appearance, check_desktop_https, check_keyring, docker, healthy,
+    check_cinnamon_appearance, check_desktop_https, check_desktop_timezone,
+    check_keyring, docker, healthy,
 )
 
 
@@ -129,6 +130,7 @@ def main():
             boot(name, args.image, home)
             healthy(name)
             docker("exec", name, "bash", "-c", ABSENT_VENDOR_APPS)
+            check_desktop_timezone(name)
             check_desktop_https(name, BASE_PATH)
             check_cinnamon_appearance(name)
             assert not (home / ".local/state/devbox/google-browser-default-cinnamon-v1").exists()

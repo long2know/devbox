@@ -134,7 +134,7 @@ without printing credentials.
 | `DEVBOX_DATA_DIR` | `./data` | Path on the Docker host; relative paths resolve from this checkout. For data outside the checkout, use an absolute path. |
 | `DESKTOP_BIND_ADDRESS`, `DESKTOP_PORT` | `127.0.0.1`, `4200` | The single published port. Keep loopback unless you intend to expose it. |
 | `DESKTOP_BACKEND_PORT` | `3001` | Direct HTTPS. Use `3000` only behind an HTTPS-terminating reverse proxy or for localhost HTTP access. |
-| `BASE_PATH`, `DESKTOP_TITLE`, `TZ` | `/`, `devbox`, `Etc/UTC` | URL prefix, browser tab title, and timezone. Prefixes must begin and end with `/`. |
+| `BASE_PATH`, `DESKTOP_TITLE`, `TZ` | `/`, `devbox`, `America/Los_Angeles` | URL prefix, browser tab title, and timezone. Prefixes must begin and end with `/`. |
 | `OLLAMA_SERVER_HOST`, `OLLAMA_SERVER_PORT` | `desktop-ollama`, `11434` | Model API reachable from Devbox. |
 | `DEVBOX_INSTALL_VENDOR_APPS` | `0` | Set to `1` to install the vendor desktop apps in a pulled/public container. The full local build already includes them. |
 | `DEVBOX_IMAGE` | `devbox-cinnamon:latest` | Local image tag or an explicitly pulled compatible image. Other build arguments and version pins are shown in `.env.example`. |
