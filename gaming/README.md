@@ -23,10 +23,10 @@ with `chmod 600 .env`, and set `GAMEBOX_PASSWORD` to a strong unique password
 and `GAMEBOX_PGID` to the host UID and GID that own the files. If moving a
 home from Devbox, see [Copy an existing home](#copy-an-existing-home) first.
 
-Before starting, either create `data/games` for a local library or set
-`GAMEBOX_STEAM_LIBRARY_DIR` to the host directory containing `steamapps`.
-If you change `GAMEBOX_DATA_DIR`, the default library moves to `games/`
-under that directory.
+Steam's client and default library live in its persistent home, `/config`.
+The separate `/games` bind is for extra libraries. It defaults to `games/`
+under `GAMEBOX_DATA_DIR` (normally `data/games`). To use existing game
+libraries, change the bind as shown below.
 
 ```bash
 docker compose build
@@ -55,7 +55,7 @@ its browser sandbox is off by default for container compatibility. Do not
 use it for untrusted browsing. Set `GAMEBOX_APP_SANDBOX=1` only on a host
 where Chrome's sandbox can run in a container.
 
-### NVIDIA and an existing Steam library
+### NVIDIA and existing game libraries
 
 Use the NVIDIA Container Toolkit on the host. Include the same overlay on
 every Compose command that manages this instance:
@@ -72,14 +72,23 @@ rendering. Selkies Gaming Mode captures the pointer for games. Steam prefers
 native bubblewrap and uses Selkies' PRoot fallback if the host disallows
 user namespaces. Game, Proton, and controller compatibility varies.
 
-In Steam, open **Settings → Storage** and add `/games`. Steam can reuse
-matching files in that library but may fetch updates or different platform
-builds. Verify that network shares are mounted on the host before starting
-Gamebox; the container doesn't mount SMB itself. If you share a library
-between operating systems, don't let two clients update it at once. Keep
-Proton's `steamapps/compatdata` on a local Linux filesystem (for example
-with a second bind mount at `/games/steamapps/compatdata`); back up existing
-prefixes before switching.
+To expose an existing games folder, replace only the `/games` line under
+`volumes:`:
+
+```yaml
+      - /data/Games:/games
+```
+
+In **Steam → Settings → Storage**, add the directory containing `steamapps`
+(for example, `/games/Steam`). If you install Heroic separately, you can import
+games from `/games/Epic Games`. Steam may still fetch updates or different
+platform builds. Verify that your host folder exists and any network share is
+mounted before starting; Compose's short bind syntax can create an empty
+directory at a missing source path.
+
+If you share a library between operating systems, don't let two clients update
+it at once. Keep Proton's `steamapps/compatdata` on a local Linux filesystem;
+back up existing prefixes before switching.
 
 ### Copy an existing home
 

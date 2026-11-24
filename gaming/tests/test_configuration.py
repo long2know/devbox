@@ -50,15 +50,12 @@ class GameboxConfigurationTests(unittest.TestCase):
             {mount["target"]: Path(mount["source"]) for mount in desktop["volumes"]},
             {"/config": GAMING / "data/home", "/games": GAMING / "data/games"},
         )
-        library = next(mount for mount in desktop["volumes"] if mount["target"] == "/games")
-        self.assertFalse(library.get("bind", {}).get("create_host_path", False))
 
     def test_prefixed_settings_configure_a_pulled_gpu_instance(self):
         config = self.configuration(
             gpu=True,
             GAMEBOX_IMAGE="ghcr.io/long2know/gamebox:latest",
             GAMEBOX_DATA_DIR="/fixture/home",
-            GAMEBOX_STEAM_LIBRARY_DIR="/fixture/SteamLibrary",
             GAMEBOX_USER="gamer",
             GAMEBOX_PUID="1234",
             GAMEBOX_PGID="1235",
@@ -76,7 +73,7 @@ class GameboxConfigurationTests(unittest.TestCase):
         self.assertEqual(str(desktop["ports"][0]["published"]), "5201")
         self.assertEqual(
             {mount["target"]: mount["source"] for mount in desktop["volumes"]},
-            {"/config": "/fixture/home/home", "/games": "/fixture/SteamLibrary"},
+            {"/config": "/fixture/home/home", "/games": "/fixture/home/games"},
         )
         environment = desktop["environment"]
         self.assertEqual(environment["PASSWORD"], "test-only: with spaces")

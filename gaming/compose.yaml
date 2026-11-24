@@ -30,11 +30,7 @@ services:
       - type: bind
         source: ${GAMEBOX_DATA_DIR:-./data}/home
         target: /config
-      - type: bind
-        source: ${GAMEBOX_STEAM_LIBRARY_DIR:-${GAMEBOX_DATA_DIR:-./data}/games}
-        target: /games
-        bind:
-          create_host_path: false
+      - "${GAMEBOX_DATA_DIR:-./data}/games:/games"
     ports:
       - "${GAMEBOX_BIND_ADDRESS:-127.0.0.1}:${GAMEBOX_PORT:-4201}:${GAMEBOX_BACKEND_PORT:-3001}"
     logging:

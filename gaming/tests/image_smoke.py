@@ -90,8 +90,11 @@ def main():
     with tempfile.TemporaryDirectory(prefix="gamebox-smoke-") as directory:
         home, games = Path(directory) / "home", Path(directory) / "games"
         home.mkdir()
-        (games / "steamapps").mkdir(parents=True)
-        (games / "steamapps/library-fixture").write_text("shared library")
+        fixtures = ("Steam/steamapps/library-fixture", "Epic Games/library-fixture")
+        for path in fixtures:
+            fixture = games / path
+            fixture.parent.mkdir(parents=True)
+            fixture.write_text(path)
         docker(
             "run", "--detach", "--pull", "never", "--name", name,
             "--network", "bridge" if args.install_chrome else "none",
@@ -112,9 +115,8 @@ def main():
                 check_cinnamon_appearance(name)
             check_keyring(name, create=True)
             check_steam_launcher(name)
-            assert docker(
-                "exec", "--user", "abc", name, "cat", "/games/steamapps/library-fixture"
-            ) == "shared library"
+            for path in fixtures:
+                assert docker("exec", "--user", "abc", name, "cat", f"/games/{path}") == path
             if args.install_chrome or args.variant == "full":
                 docker("exec", "--user", "abc", name, "chrome", "--version")
                 docker(
